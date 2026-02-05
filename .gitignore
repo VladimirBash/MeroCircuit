@@ -1,0 +1,16 @@
+a# Python
+__pycache__/
+*.pyc
+
+# Data / output
+*.h5
+*.dat
+*.npy
+*.ipynb
+.ipynb_checkpoints/
+output/
+results/
+
+# Editors
+.vscode/
+.DS_Store
