@@ -74,12 +74,26 @@ class VoltageDynamics:
         """
         V = V_init.copy()
         V[clamped_nodes] = clamped_values
-        
+    
         free_nodes = np.setdiff1d(np.arange(self.n_nodes), clamped_nodes)
-        
+    
+        # Early exit if all nodes are clamped
+        if len(free_nodes) == 0:
+            result = {
+                'V_final': V,
+                'converged': True,
+                'n_steps': 0,
+            }
+            if record_history:
+                result['V_history'] = np.array([V])
+    
+            return result
+    
         if record_history:
-            V_history = [V.copy()]
-        
+            V_history = [V.copy()]        
+  
+        max_dV = np.inf
+  
         for step in range(max_steps):
             # Compute dV/dt for free nodes
             dV_dt = self._compute_time_derivative(
