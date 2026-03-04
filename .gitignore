@@ -11,6 +11,7 @@ __pycache__/
 output/
 results/
 *.png
+*.gif
 
 # Editors
 .vscode/

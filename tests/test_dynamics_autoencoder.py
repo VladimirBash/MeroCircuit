@@ -31,17 +31,17 @@ def test_simple_autoencoder():
     """
     # === EXPERIMENTAL PARAMETERS ===
     n_input = 4
-    n_hidden = 4
+    n_hidden = 3
     n_output = 4
     
     # Physical parameters
     beta_free = 0.0
-    beta_clamped = 20.0
+    beta_clamped = 1.0
     g_penalty = 1.0
     
     # Experimental protocol
     exposure_time_free = 10.0      # seconds per free phase
-    exposure_time_clamped = 100.0   # seconds per clamped phase
+    exposure_time_clamped = 10.0   # seconds per clamped phase
     n_cycles = 1                    # number of free-clamped cycles
     
     # Solver parameters
