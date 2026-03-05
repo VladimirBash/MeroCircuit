@@ -25,8 +25,8 @@ This project implements a theoretical framework for autonomous learning in physi
 
 1. **Clone the repository:**
 ```bash
-   git clone https://github.com/BagrovAndrey/NeuromorphicAE.git
-   cd NeuromorphicAE
+   git clone https://github.com/VladimirBash/MeroCircuit
+   cd MeroCircuit
 ```
 
 2. **Create and activate virtual environment:**
