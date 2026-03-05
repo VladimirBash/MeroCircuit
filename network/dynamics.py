@@ -119,7 +119,7 @@ class VoltageDynamics:
                 return result
         
         # Did not converge
-        print(f"Warning: Did not converge in {max_steps} steps (max_dV = {max_dV:.2e})")
+        #print(f"Warning: Did not converge in {max_steps} steps (max_dV = {max_dV:.2e})") #Temporarily commented out
         result = {
             'V_final': V,
             'converged': False,

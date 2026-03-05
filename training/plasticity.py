@@ -19,7 +19,7 @@ class SimplePlasticity:
     in free and clamped phases, with saturation and spontaneous decay.
     
     Update rule:
-        dw/dt = η · ΔQ · (1 - w) - γ · w
+        dw/dt = -η · ΔQ · (1 - w) - γ · w
     
     where ΔQ = ⟨Q⟩_clamped - ⟨Q⟩_free
     """
@@ -49,9 +49,9 @@ class SimplePlasticity:
             V_drop: Voltage difference V_j - V_i
             
         Returns:
-            Q_ij = (V_drop)²
+            Q_ij = (V_drop) # Before: (V_drop)^2
         """
-        return V_drop ** 2
+        return V_drop #Before: V** 2
     
     
     def integrate_observable_ema(self,
@@ -117,8 +117,8 @@ class SimplePlasticity:
         # Contrastive signal
         delta_Q = Q_clamped - Q_free
         
-        # Update rule: dw = η·ΔQ·(1-w) - γ·w
-        dw = self.eta * delta_Q * (1 - w) - self.gamma * w
+        # Update rule: dw = -η·ΔQ·(1-w) - γ·w
+        dw = -self.eta * delta_Q * (1 - w) - self.gamma * w
         
         # Apply only to existing edges
         dw = dw * adjacency
@@ -168,3 +168,28 @@ def conductances_to_weights(g: np.ndarray,
         w: Weight matrix [0, 1]
     """
     return (g - g_min) / (g_max - g_min)
+
+def compute_Q_from_voltages(V: np.ndarray, 
+                           adjacency: np.ndarray) -> np.ndarray:
+    """
+    Compute instantaneous observable from voltage snapshot.
+    
+    Alternative to EMA integration - uses final steady-state values.
+    
+    Args:
+        V: (n_nodes,) voltage array
+        adjacency: (n_nodes, n_nodes) adjacency matrix
+        
+    Returns:
+        Q: (n_nodes, n_nodes) observable matrix
+    """
+    n_nodes = len(V)
+    Q = np.zeros((n_nodes, n_nodes))
+    
+    for i in range(n_nodes):
+        for j in range(n_nodes):
+            if adjacency[i, j]:
+                V_drop = V[j] - V[i]
+                Q[i, j] = V_drop ** 2
+    
+    return Q
