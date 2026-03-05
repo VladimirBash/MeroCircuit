@@ -12,6 +12,9 @@ output/
 results/
 *.png
 *.gif
+*.egg-info/
+venv/
+.venv/
 
 # Editors
 .vscode/
