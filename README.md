@@ -1,260 +1,265 @@
 # MeroCircuit
 
-A minimal theoretical framework for autonomous learning in physical memristive networks, based on equilibrium propagation and autoencoder principles.
+Neuromorphic autoencoder implementation using memristive networks and equilibrium propagation principles.
 
-## Overview
+## Project Overview
 
-This project implements a simulation of a fully autonomous neuromorphic learning system where:
-- **Inference** corresponds to electrical relaxation under fixed boundary conditions
-- **Learning** emerges from local adaptation driven by differences between two physical regimes (free and clamped)
-- **Loss function** is embedded directly in the physics through penalty coupling
+This project implements a theoretical framework for autonomous learning in physical memristive networks. The system uses equilibrium propagation: learning occurs through local adaptation driven by differences in electrical activity between free and clamped phases, without requiring external backpropagation.
 
-The system operates without external digital controllers or explicit gradient computation.
+### Key Features
+
+- **Voltage dynamics solver**: Transient relaxation of voltages in resistive/memristive networks
+- **Autoencoder topology**: Input → Hidden → Output architecture with penalty coupling
+- **Multiple I-V characteristics**: Ohmic, ReLU, sigmoid, and diode models
+- **Comprehensive visualization**: Network states, current flows, and animated relaxation dynamics
+- **Experimental protocol**: Realistic simulation with fixed exposure times per phase
 
 ## Installation
 
 ### Requirements
+
 - Python ≥ 3.9
-- NumPy ≥ 1.20.0
-- SciPy ≥ 1.7.0
-- Matplotlib ≥ 3.4.0
-- NetworkX ≥ 2.6.0
-- Pillow ≥ 9.0.0 (for animations)
-- pytest ≥ 7.0.0 (for testing)
+- pip and venv
 
-### Install from source
+### Setup
 
+1. **Clone the repository:**
 ```bash
-# Clone the repository
-git clone https://github.com/yourusername/MeroCircuit.git
-cd MeroCircuit
+   git clone https://github.com/BagrovAndrey/NeuromorphicAE.git
+   cd NeuromorphicAE
+```
 
-# Create and activate virtual environment (optional but recommended)
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+2. **Create and activate virtual environment:**
+```bash
+   python3 -m venv venv
+   source venv/bin/activate  # On Windows: venv\Scripts\activate
+```
 
-# Install in development mode
-pip install -e .
+3. **Install dependencies:**
+```bash
+   pip install --upgrade pip
+   pip install -r requirements.txt
+   pip install -e .
+```
 
-# Or install dependencies only
-pip install -r requirements.txt
+4. **Run tests:**
+```bash
+   pytest tests/
 ```
 
 ## Project Structure
-
 ```
 MeroCircuit/
-├── network/                    # Network dynamics and topology
-│   ├── dynamics.py            # VoltageDynamics: transient voltage relaxation solver
-│   ├── iv_characteristics.py  # I-V curves (Ohmic, ReLU, Sigmoid, Diode)
-│   └── topology/              # Network topology generators
-│
-├── training/                   # Learning algorithms
-│   └── plasticity.py          # SimplePlasticity: contrastive Hebbian learning
-│
-├── datasets/                   # Training datasets
-│   ├── bars_stripes.py        # BarsAndStripes dataset generator
-│   └── generate.py            # Dataset utilities
-│
-├── visualization/              # Visualization tools
-│   ├── plotting.py            # Basic plotting (patterns, reconstruction, loss)
-│   └── dynamics_viz.py        # Network visualization and animations
-│
-└── tests/                      # Unit tests and examples
-    ├── test_dynamics_basic.py        # Basic circuit tests
-    ├── test_dynamics_autoencoder.py  # Autoencoder topology tests
-    ├── test_bars_stripes.py          # Dataset tests
-    └── test_visualization.py         # Visualization tests
+├── network/                 # Voltage dynamics and I-V characteristics
+│   ├── dynamics.py         # VoltageDynamics solver (Euler method)
+│   ├── iv_characteristics.py  # Ohmic, ReLU, sigmoid, diode I-V curves
+│   └── legacy.py           # Volodya's original R_Network (preserved)
+├── datasets/               # Bars & Stripes pattern generation
+│   ├── bars_stripes.py    # BarsAndStripes class
+│   └── generate.py        # Dataset generation script
+├── visualization/          # Plotting and animation tools
+│   ├── plotting.py        # Static plots for patterns
+│   └── dynamics_viz.py    # Network graphs, current flows, animations
+├── tests/                  # Test suite
+│   ├── test_dynamics_basic.py      # Simple circuits (chains, dividers)
+│   ├── test_dynamics_autoencoder.py  # Autoencoder topology tests
+│   └── test_network_visualization.py  # Visualization tests
+├── training/               # [In development] Plasticity and learning
+└── memristor/              # [Future] Memristor models (Anya's work)
 ```
 
-## Key Concepts
+## Current Implementation Status
 
-### Voltage Dynamics
-The `VoltageDynamics` class solves transient electrical relaxation:
-```
-C_i · dV_i/dt = Σ_j I_ij(V_j - V_i, g_ij) + I_penalty
-```
-- Implements capacitive dynamics with configurable time constants
-- Supports multiple I-V characteristics (Ohmic, ReLU, Sigmoid, Diode)
-- Handles penalty coupling for autoencoder learning
+### ✅ Completed
 
-### I-V Characteristics
-Multiple current-voltage relationships available in `network/iv_characteristics.py`:
-- **Ohmic**: Linear resistive behavior `I = g·V`
-- **ReLU**: Threshold-activated `I = g·ReLU(|V| - V_th)·sign(V)`
-- **Sigmoid**: Smooth nonlinearity `I = g·tanh(k·V)`
-- **Diode**: Asymmetric rectification for directional current flow
+**Voltage Dynamics Solver** (`network/dynamics.py`)
+- Transient relaxation via explicit Euler method
+- Penalty coupling for autoencoder reconstruction
+- Configurable I-V characteristics and capacitances
+- Free phase (β=0) and clamped phase (β>0) support
 
-### Learning Protocol (Equilibrium Propagation)
+**I-V Characteristics** (`network/iv_characteristics.py`)
+- Ohmic (linear)
+- ReLU with threshold
+- Sigmoid (smooth nonlinearity)
+- Diode (asymmetric)
 
-For each training pattern:
+**Datasets** (`datasets/`)
+- Bars & Stripes pattern generator for N×N grids
+- Voltage encoding/decoding
+- Train/test splitting
+- Pattern type classification
 
-1. **Free phase** (β=0): System relaxes with inputs clamped, outputs free
-   ```python
-   result_free = solver.relax_transient(
-       conductances, V_init, clamped_nodes, clamped_values,
-       penalty_pairs=pairs, beta=0.0, record_history=True
-   )
-   ```
+**Visualization** (`visualization/`)
+- Time series plots of voltage evolution
+- Network graphs with voltage-coded nodes
+- Current flow visualization with arrows
+- Animated relaxation (free → clamped phase transition)
+- Side-by-side phase comparison
 
-2. **Clamped phase** (β>0): Penalty coupling weakly biases outputs toward inputs
-   ```python
-   result_clamped = solver.relax_transient(
-       conductances, V_init, clamped_nodes, clamped_values,
-       penalty_pairs=pairs, beta=1.0, g_penalty=1.0
-   )
-   ```
+**Testing**
+- Basic circuit tests (resistor chains, voltage dividers)
+- Autoencoder topology with realistic experimental protocol
+- Penalty coupling validation
+- Convergence tests with different capacitances
 
-3. **Weight update**: Contrastive Hebbian plasticity
-   ```
-   dw = η · (Q_clamped - Q_free) · (1 - w) - γ · w
-   ```
-   where `Q_ij = (V_j - V_i)²` is the local observable (quadratic in voltage drop)
+### 🚧 In Development
 
-### Penalty Coupling
-Physical implementation of autoencoder reconstruction loss:
-- Virtual resistive links between input and output nodes
-- Activated only during clamped phase (β > 0)
-- Creates weak bias toward input-output matching without hard clamping
-- Enables autonomous learning without external error signals
+**Plasticity Rules** (`training/`)
+- Contrastive Hebbian learning
+- Time-averaged observables with EMA
+- Weight update dynamics
 
-### Bars & Stripes Dataset
+**Training Loop**
+- Multi-cycle free/clamped iteration
+- MSE tracking over epochs
+- Weight evolution visualization
 
-A benchmark dataset for testing autoencoder learning:
-- N×N binary grid patterns
-- Valid patterns: horizontal stripes OR vertical bars (no mixing)
-- For 4×4 grid: 30 unique patterns (2⁴ + 2⁴ - 2)
-- Provides information bottleneck for hidden layer compression
+### 📋 Planned
 
+**Memristor Models** (Anya's module)
+- Physical memristor characteristics
+- State-dependent conductance
+- Integration with dynamics solver
+
+**Network Topology** (Volodya's module)
+- Advanced network builders
+- Custom connectivity patterns
+
+## Usage Examples
+
+### Generate Bars & Stripes Dataset
 ```python
 from datasets.bars_stripes import BarsAndStripes
 
-dataset = BarsAndStripes(N=4, voltage_on=1.0, voltage_off=0.0)
-print(f"Total patterns: {dataset.n_patterns}")  # 30 for N=4
+# Create dataset
+ds = BarsAndStripes(N=4, voltage_on=1.0, voltage_off=0.0)
 
-patterns = dataset.sample(n_samples=10, random_state=42)
-voltages = dataset.to_voltages(patterns)
+# Get all patterns
+patterns = ds.get_all_patterns()  # Shape: (n_patterns, 4, 4)
+
+# Sample random batch
+batch = ds.sample(n_samples=8)
+
+# Split for training
+train_patterns, test_patterns = ds.split_train_test(test_fraction=0.2)
 ```
 
-## Design Principles
-
-### Separation of Timescales
-- **Fast**: Electrical relaxation (inference) ~ milliseconds, governed by RC time constants
-- **Slow**: Conductance adaptation (learning) ~ seconds, governed by plasticity parameters
-
-### Locality
-- No global error signals or backpropagation
-- Each synapse updates based only on local voltage drops
-- Penalty coupling is physical (virtual resistive links), not algorithmic
-
-### Physical Plausibility
-- All operations correspond to material processes
-- Capacitive charging dynamics with realistic time constants
-- Loss function embedded in circuit topology through penalty links
-- Learning driven by energy landscape differences between phases
-
-## Basic Usage
-
-### Example: Simple voltage relaxation
+### Run Voltage Relaxation
 ```python
-import numpy as np
 from network.dynamics import VoltageDynamics
 from network.iv_characteristics import ohmic
+import numpy as np
 
-# Define 3-node resistor chain: 0 -- 1 -- 2
-adjacency = np.array([
-    [0, 1, 0],
-    [1, 0, 1],
-    [0, 1, 0]
-])
+# Simple 3-node chain: 0 -- 1 -- 2
+adjacency = np.array([[0, 1, 0], [1, 0, 1], [0, 1, 0]])
 conductances = adjacency.astype(float)
 
-# Create solver
 solver = VoltageDynamics(adjacency, ohmic, capacitances=1.0)
 
-# Relax with boundary conditions V[0]=1, V[2]=0
+# Relax with boundary conditions
 V_init = np.array([1.0, 0.5, 0.0])
 result = solver.relax_transient(
     conductances, V_init,
     clamped_nodes=np.array([0, 2]),
     clamped_values=np.array([1.0, 0.0]),
-    dt=0.01, tol=1e-6
+    dt=0.01, max_steps=1000, record_history=True
 )
 
 print(f"Final voltages: {result['V_final']}")
-print(f"Converged in {result['n_steps']} steps")
+print(f"Converged: {result['converged']} in {result['n_steps']} steps")
 ```
 
-### Example: Contrastive plasticity
+### Autoencoder with Penalty Coupling
 ```python
-from training.plasticity import SimplePlasticity
+# Build 4→3→4 autoencoder
+n_input, n_hidden, n_output = 4, 3, 4
+n_total = n_input + n_hidden + n_output
 
-plasticity = SimplePlasticity(eta=0.01, gamma=0.001, tau_integrate=1.0)
+# ... build adjacency and conductances ...
 
-# Integrate observables from voltage history
-Q_free = plasticity.integrate_observable_ema(V_history_free, adjacency, dt=0.01)
-Q_clamped = plasticity.integrate_observable_ema(V_history_clamped, adjacency, dt=0.01)
+penalty_pairs = [(i, n_input + n_hidden + i) for i in range(n_input)]
 
-# Update weights
-w_new = plasticity.update_weights(w, Q_free, Q_clamped, adjacency, dt_plasticity=1.0)
+# Free phase (β=0)
+result_free = solver.relax_transient(
+    conductances, V_init,
+    clamped_nodes=input_nodes,
+    clamped_values=V_input,
+    beta=0.0, dt=0.001, max_steps=10000
+)
+
+# Clamped phase (β>0)
+result_clamped = solver.relax_transient(
+    conductances, result_free['V_final'],
+    clamped_nodes=input_nodes,
+    clamped_values=V_input,
+    penalty_pairs=penalty_pairs,
+    beta=1.0, g_penalty=1.0,
+    dt=0.001, max_steps=10000
+)
 ```
 
-## Running Tests
-
-The test suite includes both unit tests and visualization examples:
-
-```bash
-# Run all tests
-pytest tests/
-
-# Run specific test with visualization output
-python tests/test_dynamics_basic.py        # Basic circuit tests
-python tests/test_dynamics_autoencoder.py  # Autoencoder topology
-python tests/test_visualization.py         # Generates plots and animations
-```
-
-Test outputs include:
-- Voltage evolution plots
-- Network state visualizations
-- Animated relaxation dynamics (GIF format)
-
-## Visualization
-
-The package includes comprehensive visualization tools:
-
+### Visualize Network Dynamics
 ```python
 from visualization.dynamics_viz import plot_voltage_evolution, animate_relaxation
 
-# Static plot of voltage evolution
+# Plot voltage evolution
 fig = plot_voltage_evolution(
-    V_history,
-    node_groups={'Input': [0,1], 'Hidden': [2,3], 'Output': [4,5]},
+    result['V_history'],
+    node_groups={'Input': [0, 3], 'Hidden': [1, 2]},
     dt=0.01
 )
+fig.savefig('voltage_evolution.png')
 
-# Animated relaxation with network graph
+# Create animation (free → clamped)
+V_combined = np.vstack([result_free['V_history'], result_clamped['V_history']])
 anim = animate_relaxation(
-    V_history, adjacency, conductances, iv_function,
-    node_groups={'Input': [0,1], 'Hidden': [2,3], 'Output': [4,5]},
-    output_file='relaxation.gif', fps=30
+    V_combined, adjacency, conductances, ohmic,
+    nodes_to_plot=[0, 4, 8],  # Selected nodes
+    phase_transition_frame=len(result_free['V_history']),
+    output_file='relaxation.gif'
 )
 ```
 
-## References
+## Running Tests
+```bash
+# All tests
+pytest tests/ -v
 
-Based on theoretical proposal: *Fully autonomous neuromorphic element based on autoencoder learning principles* (Bagrov, Bashmakov, Kravchenko, 2025)
+# Specific test file
+pytest tests/test_dynamics_autoencoder.py -v
 
-Key concepts:
-- Equilibrium propagation (Scellier & Bengio, 2017)
-- Physical autoencoder learning
-- Memristive networks
+# With coverage
+pytest tests/ --cov=network --cov=datasets --cov=visualization
+```
 
-## Contributors
+## Key Parameters
 
-- Andrey Bagrov
-- Vladimir Bashmakov
-- Anna Kravchenko
+### Solver Configuration
+- `dt`: Time step (0.001 for stable clamped phase with high β)
+- `tol`: Convergence tolerance (1e-10 for high precision)
+- `max_steps`: Maximum iterations per phase
+
+### Physical Parameters
+- `beta`: Penalty coupling strength (0 = free, >0 = clamped)
+- `g_penalty`: Penalty link conductance
+- `capacitances`: Node capacitances (affects relaxation speed)
+
+### Experimental Protocol
+- `exposure_time_free`: Duration of free phase
+- `exposure_time_clamped`: Duration of clamped phase
+- Both measured in seconds, independent of solver timestep
+
+## Team
+
+- **Andrey Bagrov**
+- **Anna Kravchenko**
+- **Vladimir Bashmakov**
 
 ## License
 
-(TBD)
+[To be determined]
+
+## References
+
+[Key papers and theoretical background to be added]
