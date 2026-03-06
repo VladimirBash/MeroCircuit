@@ -41,7 +41,7 @@ class PlasticityTestConfig:
     tau_integrate: float = 20.0
     
     # Training parameters
-    n_cycles: int = 30
+    n_cycles: int = 300
     exposure_time_free: float = 10.0
     exposure_time_clamped: float = 10.0
     
@@ -56,9 +56,9 @@ class PlasticityTestConfig:
     dt_plasticity: float = 1.0
     
     # Weight initialization
-    w_min: float = 0.3
-    w_max: float = 0.7
-    g_min: float = 0.1
+    w_min: float = 0.1
+    w_max: float = 0.9
+    g_min: float = 0.01
     g_max: float = 1.0
     
     # Reproducibility
@@ -298,7 +298,10 @@ def test_single_pattern_overfitting():
     
             V_free_final = result_free['V_final']
             V_clamped_final = result_clamped['V_final']
-    
+
+            V_hidden_free = result_free['V_final'][hidden_nodes]
+            V_hidden_clamped = result_clamped['V_final'][hidden_nodes]    
+   
             for i in range(len(adjacency)):
                 for j in range(len(adjacency)):
                     if adjacency[i, j]:
@@ -308,8 +311,8 @@ def test_single_pattern_overfitting():
             delta_Q_manual = Q_clamped_manual - Q_free_manual
             
             print(f"  Cycle {cycle+1}/{CONFIG.n_cycles}:")
-            print(f"    Free:    MSE={mse_free:.6f}, Output={np.round(V_output_free, 3)}")
-            print(f"    Clamped: MSE={mse_clamped:.6f}, Output={np.round(V_output_clamped, 3)}")
+            print(f"    Free:    MSE={mse_free:.6f}, Output={np.round(V_output_free, 3)}, Hidden={np.round(V_hidden_free, 3)}")
+            print(f"    Clamped: MSE={mse_clamped:.6f}, Output={np.round(V_output_clamped, 3)}, , Hidden={np.round(V_hidden_clamped, 3)}")
             print(f"    delta_Q (EMA):    mean={delta_Q_edges.mean():.6f}, max={np.abs(delta_Q_edges).max():.6f}")
             print(f"    delta_Q (manual): mean={delta_Q_manual[adjacency].mean():.6f}, max={np.abs(delta_Q_manual[adjacency]).max():.6f}")
             print(f"    dw:               mean={dw_edges.mean():.6f}, max={np.abs(dw_edges).max():.6f}")
