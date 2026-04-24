@@ -1,42 +1,47 @@
 # network/dynamics.py
+import sys
+import os
 
+sys.path.append(os.path.dirname(os.getcwd()))
+
+
+from memristor.memristor import Memristor
+from grid.grid import Grid
 import numpy as np
-from typing import Callable, Optional, Tuple, List
+from typing import Optional, Tuple, List
 
 
 class VoltageDynamics:
     """
     Solver for voltage relaxation in memristive networks.
     
-    Implements transient dynamics: C_i * dV_i/dt = Σ_j I_ij + I_penalty
-    Works with simple numpy arrays, independent of Network/Memristor classes.
+    Implements transient dynamics:
+        C_i * dV_i/dt = Σ_j I_ij + I_penalty
+    
+    IMPORTANT:
+    - Memristors are treated as STATIC during this relaxation.
+    - Their internal state evolution must be handled externally.
     """
     
-    def __init__(self, 
-                 adjacency: np.ndarray,
-                 iv_function: Callable,
-                 capacitances: Optional[np.ndarray] = None):
+    def __init__(self,
+                 grid,
+                 memristors: np.ndarray,
+                 ):
         """
         Initialize voltage dynamics solver.
         
         Args:
-            adjacency: (n_nodes, n_nodes) boolean array of connections
-            iv_function: callable f(V_drop, g) -> current
-            capacitances: (n_nodes,) array or scalar (default: all 1.0)
+            1. An instance of a Grid class
+            2. An array of memristors:
         """
-        self.adj = adjacency.astype(bool)
-        self.n_nodes = len(adjacency)
-        self.iv_func = iv_function
+        self.memristors = memristors
+        self.grid = grid
         
-        # Setup capacitances
-        if capacitances is None:
-            self.C = np.ones(self.n_nodes)
-        elif np.isscalar(capacitances):
-            self.C = np.full(self.n_nodes, capacitances)
-        else:
-            self.C = np.array(capacitances)
+        self.n_nodes = len(grid.adjacency)
     
     
+
+
     def relax_transient(self,
                     V_init: np.ndarray,
                     penalty_pairs=None,
@@ -46,21 +51,20 @@ class VoltageDynamics:
                     tol: float = 1e-6,
                     dt: float = 0.01,
                     record_history: bool = False):
-        
+
         V = V_init.copy()
-        
+
         # enforce clamped nodes
-        
         V[self.grid.clamped_nodes] = self.grid.clamped_values
 
         free_nodes = np.setdiff1d(np.arange(self.n_nodes),
                              self.grid.clamped_nodes)
-
+        
         if record_history:
             V_history = [V.copy()]
 
         for step in range(max_steps):
-            
+
             dV_dt = self._compute_time_derivative(
                 V, penalty_pairs, beta, g_penalty
             )
@@ -70,7 +74,7 @@ class VoltageDynamics:
             if record_history:
                 V_history.append(V.copy())
 
-            if np.max(np.abs(dV_dt[free_nodes])) < tol:
+            if np.max(np.abs(dt * dV_dt[free_nodes])) < tol:
                 result = {
                     'V_final': V,
                     'converged': True,
@@ -78,7 +82,10 @@ class VoltageDynamics:
                 }
                 if record_history:
                     result['V_history'] = np.array(V_history)
+                
                 return result
+
+            
 
         result = {
             'V_final': V,
@@ -90,41 +97,40 @@ class VoltageDynamics:
 
         return result
     
-    
     def _compute_time_derivative(self,
-                                 V: np.ndarray,
-                                 conductances: np.ndarray,
-                                 free_nodes: np.ndarray,
-                                 penalty_pairs: Optional[List],
-                                 beta: float,
-                                 g_penalty: float) -> np.ndarray:
-        """
-        Compute dV/dt = (I_neighbors + I_penalty) / C for each node.
+                             V,
+                             penalty_pairs,
+                             beta,
+                             g_penalty):
         
-        Only computes for free nodes to save time.
-        """
         dV_dt = np.zeros(self.n_nodes)
         
-        for i in free_nodes:
-            # Current from neighbors via memristors
+        clamped_mask = np.zeros(self.n_nodes, dtype=bool)
+        clamped_mask[self.grid.clamped_nodes] = True
+
+        for i in range(self.n_nodes):
+            if clamped_mask[i]:
+                continue
             I_neighbors = 0.0
+
             for j in range(self.n_nodes):
-                if self.adj[i, j]:
-                    V_drop = V[j] - V[i]
-                    g_ij = conductances[i, j]
-                    I_neighbors += self.iv_func(V_drop, g_ij)
-            
-            # Penalty current for autoencoder
+                if self.grid.adjacency[i, j]:
+                    mem = self.memristors[i, j]
+                    if mem is not None:
+                        V_drop = V[j] - V[i]
+                        I_neighbors += mem.current(V_drop)
+
             I_penalty = 0.0
+        
             if penalty_pairs is not None and beta > 0:
                 I_penalty = self._compute_penalty_current(
                     i, V, penalty_pairs, beta, g_penalty
                 )
-            
-            dV_dt[i] = (I_neighbors + I_penalty) / self.C[i]
-        
+
+            dV_dt[i] = (I_neighbors + I_penalty) / self.grid.C[i]
+
+
         return dV_dt
-    
     
     def _compute_penalty_current(self,
                                  node_idx: int,
@@ -134,35 +140,35 @@ class VoltageDynamics:
                                  g_penalty: float) -> float:
         """
         Compute penalty current for autoencoder coupling.
-        
-        Penalty links weakly connect input-output pairs during clamped phase.
         """
         I_pen = 0.0
         
         for in_node, out_node in penalty_pairs:
             if node_idx == out_node:
-                # Current flows into output from corresponding input
                 V_drop = V[in_node] - V[out_node]
                 I_pen += beta * g_penalty * V_drop
             elif node_idx == in_node:
-                # Equal and opposite current at input
                 V_drop = V[in_node] - V[out_node]
                 I_pen -= beta * g_penalty * V_drop
         
         return I_pen
     
-
-    def compute_currents(self, V):
-
+    
+    def compute_currents(self,
+                        V: np.ndarray,
+                        memristors: np.ndarray) -> np.ndarray:
+        """
+        Compute currents through all edges.
+        
+        Returns:
+            I[i,j] = current flowing from j → i
+        """
         I = np.zeros((self.n_nodes, self.n_nodes))
-
+        
         for i in range(self.n_nodes):
             for j in range(self.n_nodes):
-                if self.grid.adjacency[i, j]:
-                    mem = self.memristors[i, j]
-                if mem is not None:
+                if self.memristors[i, j] is not None:
                     V_drop = V[j] - V[i]
-                    I[i, j] = mem.current(V_drop)
+                    I[i, j] = memristors[i, j].current(V_drop)
         
         return I
-
